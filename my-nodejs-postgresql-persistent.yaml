@@ -75,7 +75,7 @@ spec:
   postCommit: {}
   source:
     git:
-      uri: http://gitlab.libvirt8/shouston/my-nodejs-rest-http-crud.git
+      uri: https://github.com/Shawn-Houston/inventory-demo.git
     type: Git
   strategy:
     sourceStrategy:
