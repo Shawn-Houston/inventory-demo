@@ -14,6 +14,7 @@ spec:
 #  storageClassName: gpfs01-sc
   storageClassName: ocs-storagecluster-ceph-rbd
 #  storageClassName: ocs-external-storagecluster-ceph-rbd
+#  storageClassName: localblock-osds-only
 ...
 ---
 apiVersion: v1
@@ -58,6 +59,9 @@ metadata:
   annotations:
     description: Keeps track of changes in the application image
   name: my-nodejs-postgresql-persistent
+spec:
+  lookupPolicy:
+    local: true
 ...
 ---
 apiVersion: build.openshift.io/v1
@@ -88,8 +92,8 @@ spec:
   - type: ConfigChange
 ...
 ---
-apiVersion: apps.openshift.io/v1
-kind: DeploymentConfig
+apiVersion: apps/v1
+kind: Deployment
 metadata:
   annotations:
     description: Defines how to deploy the application server
@@ -100,9 +104,8 @@ metadata:
 spec:
   replicas: 1
   selector:
-    name: my-nodejs-postgresql-persistent
-  strategy:
-    type: Rolling
+    matchLabels:
+      name: my-nodejs-postgresql-persistent
   template:
     metadata:
       labels:
@@ -131,7 +134,7 @@ spec:
             secretKeyRef:
               key: database-admin-password
               name: my-nodejs-postgresql-persistent
-        image: ' '
+        image: my-nodejs-postgresql-persistent:latest
         livenessProbe:
           httpGet:
             path: /
@@ -150,16 +153,14 @@ spec:
         resources:
           limits:
             memory: 256Mi
-  triggers:
-  - imageChangeParams:
-      automatic: true
-      containerNames:
-      - my-nodejs-postgresql-persistent
-      from:
-        kind: ImageStreamTag
-        name: my-nodejs-postgresql-persistent:latest
-    type: ImageChange
-  - type: ConfigChange
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
+          capabilities:
+            drop:
+            - ALL
 ...
 ---
 apiVersion: v1
@@ -177,8 +178,8 @@ spec:
     name: postgresql
 ...
 ---
-apiVersion: apps.openshift.io/v1
-kind: DeploymentConfig
+apiVersion: apps/v1
+kind: Deployment
 metadata:
   annotations:
     description: Defines how to deploy the database
@@ -187,9 +188,8 @@ metadata:
 spec:
   replicas: 1
   selector:
-    name: postgresql
-  strategy:
-    type: Recreate
+    matchLabels:
+      name: postgresql
   template:
     metadata:
       labels:
@@ -217,7 +217,7 @@ spec:
               name: my-nodejs-postgresql-persistent
         - name: PGDATA
           value: "/var/lib/pgsql/data/pgdata"
-        image: ' '
+        image: registry.redhat.io/rhel8/postgresql-12
         livenessProbe:
           initialDelaySeconds: 30
           tcpSocket:
@@ -232,19 +232,16 @@ spec:
         volumeMounts:
         - mountPath: /var/lib/pgsql/data
           name: postgresql-data
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
+          capabilities:
+            drop:
+            - ALL
       volumes:
       - name: postgresql-data
         persistentVolumeClaim:
           claimName: postgresql
-  triggers:
-  - imageChangeParams:
-      automatic: true
-      containerNames:
-      - postgresql
-      from:
-        kind: ImageStreamTag
-        name: postgresql:12-el8
-        namespace: openshift
-    type: ImageChange
-  - type: ConfigChange
 ...
