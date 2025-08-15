@@ -51,6 +51,12 @@ spec:
   to:
     kind: Service
     name: my-nodejs-postgresql-persistent
+  port:
+    targetPort: web
+  wildcardPolicy: None
+  tls:
+    termination: Edge
+    insecureEdgeTerminationPolicy: Redirect # Redirects HTTP traffic to HTTPS
 ...
 ---
 apiVersion: image.openshift.io/v1
